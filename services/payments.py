@@ -10,16 +10,24 @@ class PaymentStatus(str, Enum):
     PENDING = "pending"
     FAILED = "failed"
 
+# services/payments.py  (only the mapping changed; rest same)
 def payment_links_config() -> Dict[str, str]:
     return {
+        # DOCX
         "RESUME": os.getenv("RAZORPAY_LINK_RESUME", "#"),
         "SOP": os.getenv("RAZORPAY_LINK_SOP", "#"),
         "COVER_LETTER": os.getenv("RAZORPAY_LINK_COVER_LETTER", "#"),
         "VISA_COVER_LETTER": os.getenv("RAZORPAY_LINK_VISA_COVER_LETTER", "#"),
-        # (Reserved for future)
+        # LaTeX / PDF
+        "RESUME_LATEX": os.getenv("RAZORPAY_LINK_RESUME_LATEX", "#"),
+        "SOP_LATEX": os.getenv("RAZORPAY_LINK_SOP_LATEX", "#"),
+        "COVER_LETTER_LATEX": os.getenv("RAZORPAY_LINK_COVER_LETTER_LATEX", "#"),
+        "VISA_COVER_LETTER_LATEX": os.getenv("RAZORPAY_LINK_VISA_COVER_LETTER_LATEX", "#"),
+        # (reserved)
         "VISA_ITINERARY": os.getenv("RAZORPAY_LINK_VISA_ITINERARY", "#"),
         "VISA_SPONSOR": os.getenv("RAZORPAY_LINK_VISA_SPONSOR", "#"),
     }
+
 
 def _basic_auth() -> Tuple[str, str]:
     kid = os.getenv("RAZORPAY_KEY_ID")

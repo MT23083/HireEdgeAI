@@ -1,0 +1,47 @@
+\documentclass[a4paper,11pt]{article}
+
+% --- Copy/paste & Unicode friendly ---
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{cmap}
+\usepackage{microtype}
+
+% --- Layout ---
+\usepackage[margin=1in]{geometry}
+\usepackage{parskip}          % blank-line paragraphs
+\usepackage{setspace}
+\onehalfspacing
+\raggedright                   % avoids justification artifacts
+
+% --- Watermark (optional) ---
+\usepackage{draftwatermark}
+% Only set watermark when non-empty
+{% if watermark_text|trim %}
+\SetWatermarkText{ {{ watermark_text }} }
+\SetWatermarkScale{2}
+\SetWatermarkLightness{0.9}
+{% endif %}
+
+% --- Links (load last) ---
+\usepackage[hidelinks]{hyperref}
+
+\pagenumbering{gobble}
+
+\begin{document}
+
+{{ applicant_block }}\\[6pt]
+{{ date }}\\[10pt]
+{{ embassy_block }}\\[10pt]
+
+\textbf{Subject:} {{ subject }}\\[10pt]
+
+Respected Visa Officer,\\[6pt]
+
+{{ body }}\\[10pt]
+
+Thank you for your time and consideration.\\[6pt]
+Yours sincerely,\\[6pt]
+{{ sign_name }}
+
+\end{document}

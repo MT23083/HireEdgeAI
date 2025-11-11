@@ -1,10 +1,11 @@
 # app.py
 """
 AI Document Assistant (Resume, SOP, Cover Letter, Visa Cover Letter)
-MVP: Streamlit + OpenAI + docxtpl + Razorpay Payment Links
+MVP: Streamlit + OpenAI + docxtpl + LaTeX + Razorpay Payment Links
 
 Flow per document:
-  Form -> AI draft preview (watermarked) -> Razorpay pay link -> Verify Payment ID -> Download final DOCX
+  Form -> AI draft preview (watermarked) -> Razorpay pay link (DOCX/PDF) ->
+  Verify Payment ID -> Download final in chosen format
 """
 
 from __future__ import annotations
@@ -13,7 +14,7 @@ from pathlib import Path
 import streamlit as st
 
 from dotenv import load_dotenv
-load_dotenv()  # local dev; set secrets on Streamlit Cloud env panel
+load_dotenv()  # local dev; on Streamlit Cloud use Secrets
 
 # --- Local paths
 APP_DIR = Path(__file__).resolve().parent
@@ -27,7 +28,10 @@ from services.llm import (
 )
 from services.render import (
     ensure_dirs, cleanup_old_files,
-    render_resume_docx, render_sop_docx, render_cover_letter_docx, render_visa_cover_letter_docx
+    # DOCX renderers
+    render_resume_docx, render_sop_docx, render_cover_letter_docx, render_visa_cover_letter_docx,
+    # LaTeX → PDF renderers
+    render_resume_latex_pdf, render_sop_latex_pdf, render_cover_letter_latex_pdf, render_visa_cover_letter_latex_pdf
 )
 from services.payments import payment_links_config, verify_razorpay_payment, PaymentStatus
 
@@ -45,12 +49,12 @@ st.set_page_config(
 links = payment_links_config()
 
 # ---------- Helpers ----------
-def _download_button(docx_bytes: bytes, filename: str, label: str = "⬇️ Download DOCX"):
+def _download_button(data_bytes: bytes, filename: str, label: str, mime: str):
     st.download_button(
         label=label,
-        data=docx_bytes,
+        data=data_bytes,
         file_name=filename,
-        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        mime=mime,
         use_container_width=True,
     )
 
@@ -58,9 +62,9 @@ def _verify_ui(product_label: str) -> bool:
     st.divider()
     st.markdown(f"#### ✅ Unlock Final {product_label}")
     st.write("If you’ve paid already, enter your **Razorpay Payment ID** (e.g., `pay_ABC123...`).")
-    pid = st.text_input("Razorpay Payment ID", placeholder="pay_...")
+    pid = st.text_input("Razorpay Payment ID", placeholder="pay_...", key=f"pid_{product_label}")
     verified = False
-    if st.button("Verify Payment", use_container_width=True, type="primary"):
+    if st.button("Verify Payment", use_container_width=True, type="primary", key=f"verify_{product_label}"):
         if not pid.strip():
             st.error("Enter a valid Payment ID.")
         else:
@@ -75,6 +79,13 @@ def _verify_ui(product_label: str) -> bool:
             with st.expander("Payment lookup (debug)"):
                 st.code(raw or "No response", language="json")
     return verified
+
+def _format_selector(default_pdf: bool = False) -> tuple[str, bool]:
+    """
+    Returns (label, is_latex_pdf)
+    """
+    fmt = st.radio("Format", ["DOCX", "PDF (LaTeX)"], horizontal=True, index=1 if default_pdf else 0)
+    return fmt, (fmt == "PDF (LaTeX)")
 
 
 # ---------- Sidebar ----------
@@ -150,15 +161,50 @@ with tab1:
         st.subheader("JSON Preview (watermarked)")
         st.json(draft, expanded=False)
 
-        preview_bytes = render_resume_docx(TEMPLATES_DIR, DATA_DIR, form, draft, watermarked=True)
-        _download_button(preview_bytes, f"{form.full_name.replace(' ','_')}_resume_PREVIEW.docx",
-                         label="⬇️ Download Watermarked Preview")
+        fmt, use_latex = _format_selector()
 
-        st.link_button("Pay ₹299 for Resume (Razorpay)", url=links["RESUME"], use_container_width=True)
+        if use_latex:
+            try:
+                preview_bytes = render_resume_latex_pdf(TEMPLATES_DIR, DATA_DIR, form, draft, watermarked=True)
+                _download_button(
+                    preview_bytes,
+                    f"{form.full_name.replace(' ','_')}_resume_PREVIEW.pdf",
+                    label="⬇️ Download Watermarked Preview (PDF)",
+                    mime="application/pdf",
+                )
+            except Exception as e:
+                st.error(f"PDF build error: {e}")
+            st.link_button("Pay ₹399 for Resume (LaTeX PDF)", url=links["RESUME_LATEX"], use_container_width=True)
 
-        if _verify_ui("Resume"):
-            final_bytes = render_resume_docx(TEMPLATES_DIR, DATA_DIR, form, draft, watermarked=False)
-            _download_button(final_bytes, f"{form.full_name.replace(' ','_')}_resume.docx")
+            if _verify_ui("Resume (LaTeX)"):
+                try:
+                    final_bytes = render_resume_latex_pdf(TEMPLATES_DIR, DATA_DIR, form, draft, watermarked=False)
+                    _download_button(
+                        final_bytes,
+                        f"{form.full_name.replace(' ','_')}_resume.pdf",
+                        label="⬇️ Download Final (PDF)",
+                        mime="application/pdf",
+                    )
+                except Exception as e:
+                    st.error(f"PDF build error: {e}")
+        else:
+            preview_bytes = render_resume_docx(TEMPLATES_DIR, DATA_DIR, form, draft, watermarked=True)
+            _download_button(
+                preview_bytes,
+                f"{form.full_name.replace(' ','_')}_resume_PREVIEW.docx",
+                label="⬇️ Download Watermarked Preview (DOCX)",
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            )
+            st.link_button("Pay ₹299 for Resume (DOCX)", url=links["RESUME"], use_container_width=True)
+
+            if _verify_ui("Resume (DOCX)"):
+                final_bytes = render_resume_docx(TEMPLATES_DIR, DATA_DIR, form, draft, watermarked=False)
+                _download_button(
+                    final_bytes,
+                    f"{form.full_name.replace(' ','_')}_resume.docx",
+                    label="⬇️ Download Final (DOCX)",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                )
 
 # =========================
 # SOP
@@ -192,15 +238,50 @@ with tab2:
         st.success("Preview generated.")
         st.text_area("SOP Preview (watermarked)", sop_text, height=320)
 
-        preview_bytes = render_sop_docx(TEMPLATES_DIR, DATA_DIR, form, sop_text, watermarked=True)
-        _download_button(preview_bytes, f"{form.full_name.replace(' ','_')}_SOP_PREVIEW.docx",
-                         label="⬇️ Download Watermarked Preview")
+        fmt, use_latex = _format_selector()
 
-        st.link_button("Pay ₹499 for SOP (Razorpay)", url=links["SOP"], use_container_width=True)
+        if use_latex:
+            try:
+                preview_bytes = render_sop_latex_pdf(TEMPLATES_DIR, DATA_DIR, form, sop_text, watermarked=True)
+                _download_button(
+                    preview_bytes,
+                    f"{form.full_name.replace(' ','_')}_SOP_PREVIEW.pdf",
+                    label="⬇️ Download Watermarked Preview (PDF)",
+                    mime="application/pdf",
+                )
+            except Exception as e:
+                st.error(f"PDF build error: {e}")
+            st.link_button("Pay ₹599 for SOP (LaTeX PDF)", url=links["SOP_LATEX"], use_container_width=True)
 
-        if _verify_ui("SOP"):
-            final_bytes = render_sop_docx(TEMPLATES_DIR, DATA_DIR, form, sop_text, watermarked=False)
-            _download_button(final_bytes, f"{form.full_name.replace(' ','_')}_SOP.docx")
+            if _verify_ui("SOP (LaTeX)"):
+                try:
+                    final_bytes = render_sop_latex_pdf(TEMPLATES_DIR, DATA_DIR, form, sop_text, watermarked=False)
+                    _download_button(
+                        final_bytes,
+                        f"{form.full_name.replace(' ','_')}_SOP.pdf",
+                        label="⬇️ Download Final (PDF)",
+                        mime="application/pdf",
+                    )
+                except Exception as e:
+                    st.error(f"PDF build error: {e}")
+        else:
+            preview_bytes = render_sop_docx(TEMPLATES_DIR, DATA_DIR, form, sop_text, watermarked=True)
+            _download_button(
+                preview_bytes,
+                f"{form.full_name.replace(' ','_')}_SOP_PREVIEW.docx",
+                label="⬇️ Download Watermarked Preview (DOCX)",
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            )
+            st.link_button("Pay ₹499 for SOP (DOCX)", url=links["SOP"], use_container_width=True)
+
+            if _verify_ui("SOP (DOCX)"):
+                final_bytes = render_sop_docx(TEMPLATES_DIR, DATA_DIR, form, sop_text, watermarked=False)
+                _download_button(
+                    final_bytes,
+                    f"{form.full_name.replace(' ','_')}_SOP.docx",
+                    label="⬇️ Download Final (DOCX)",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                )
 
 # =========================
 # Cover Letter
@@ -229,15 +310,52 @@ with tab3:
         st.success("Preview generated.")
         st.text_area("Cover Letter Preview (watermarked)", cl_text, height=280)
 
-        preview_bytes = render_cover_letter_docx(TEMPLATES_DIR, DATA_DIR, form, cl_text, watermarked=True)
-        _download_button(preview_bytes, f"{form.full_name.replace(' ','_')}_CoverLetter_PREVIEW.docx",
-                         label="⬇️ Download Watermarked Preview")
+        fmt, use_latex = _format_selector()
 
-        st.link_button("Pay ₹199 for Cover Letter (Razorpay)", url=links["COVER_LETTER"], use_container_width=True)
+        if use_latex:
+            try:
+                preview_bytes = render_cover_letter_latex_pdf(TEMPLATES_DIR, DATA_DIR, form, cl_text, watermarked=True)
+                _download_button(
+                    preview_bytes,
+                    f"{form.full_name.replace(' ','_')}_CoverLetter_PREVIEW.pdf",
+                    label="⬇️ Download Watermarked Preview (PDF)",
+                    mime="application/pdf",
+                )
+            except Exception as e:
+                st.error(f"PDF build error: {e}")
+            st.link_button("Pay ₹249 for Cover Letter (LaTeX PDF)",
+                           url=links["COVER_LETTER_LATEX"], use_container_width=True)
 
-        if _verify_ui("Cover Letter"):
-            final_bytes = render_cover_letter_docx(TEMPLATES_DIR, DATA_DIR, form, cl_text, watermarked=False)
-            _download_button(final_bytes, f"{form.full_name.replace(' ','_')}_CoverLetter.docx")
+            if _verify_ui("Cover Letter (LaTeX)"):
+                try:
+                    final_bytes = render_cover_letter_latex_pdf(TEMPLATES_DIR, DATA_DIR, form, cl_text, watermarked=False)
+                    _download_button(
+                        final_bytes,
+                        f"{form.full_name.replace(' ','_')}_CoverLetter.pdf",
+                        label="⬇️ Download Final (PDF)",
+                        mime="application/pdf",
+                    )
+                except Exception as e:
+                    st.error(f"PDF build error: {e}")
+        else:
+            preview_bytes = render_cover_letter_docx(TEMPLATES_DIR, DATA_DIR, form, cl_text, watermarked=True)
+            _download_button(
+                preview_bytes,
+                f"{form.full_name.replace(' ','_')}_CoverLetter_PREVIEW.docx",
+                label="⬇️ Download Watermarked Preview (DOCX)",
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            )
+            st.link_button("Pay ₹199 for Cover Letter (DOCX)",
+                           url=links["COVER_LETTER"], use_container_width=True)
+
+            if _verify_ui("Cover Letter (DOCX)"):
+                final_bytes = render_cover_letter_docx(TEMPLATES_DIR, DATA_DIR, form, cl_text, watermarked=False)
+                _download_button(
+                    final_bytes,
+                    f"{form.full_name.replace(' ','_')}_CoverLetter.docx",
+                    label="⬇️ Download Final (DOCX)",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                )
 
 # =========================
 # Visa Cover Letter (EU/Schengen format)
@@ -308,15 +426,52 @@ with tab4:
         st.success("Preview generated.")
         st.text_area("Visa Cover Letter Preview (watermarked)", v_text, height=320)
 
-        v_preview = render_visa_cover_letter_docx(TEMPLATES_DIR, DATA_DIR, form, v_text, watermarked=True)
-        _download_button(v_preview, f"{form.full_name.replace(' ','_')}_VisaCover_PREVIEW.docx",
-                         label="⬇️ Download Watermarked Preview")
+        fmt, use_latex = _format_selector()
 
-        st.link_button("Pay ₹299 to unlock Visa Cover Letter (Razorpay)", url=links["VISA_COVER_LETTER"], use_container_width=True)
+        if use_latex:
+            try:
+                v_preview = render_visa_cover_letter_latex_pdf(TEMPLATES_DIR, DATA_DIR, form, v_text, watermarked=True)
+                _download_button(
+                    v_preview,
+                    f"{form.full_name.replace(' ','_')}_VisaCover_PREVIEW.pdf",
+                    label="⬇️ Download Watermarked Preview (PDF)",
+                    mime="application/pdf",
+                )
+            except Exception as e:
+                st.error(f"PDF build error: {e}")
+            st.link_button("Pay ₹349 to unlock Visa Cover Letter (LaTeX PDF)",
+                           url=links["VISA_COVER_LETTER_LATEX"], use_container_width=True)
 
-        if _verify_ui("Visa Cover Letter"):
-            v_final = render_visa_cover_letter_docx(TEMPLATES_DIR, DATA_DIR, form, v_text, watermarked=False)
-            _download_button(v_final, f"{form.full_name.replace(' ','_')}_VisaCoverLetter.docx")
+            if _verify_ui("Visa Cover Letter (LaTeX)"):
+                try:
+                    v_final = render_visa_cover_letter_latex_pdf(TEMPLATES_DIR, DATA_DIR, form, v_text, watermarked=False)
+                    _download_button(
+                        v_final,
+                        f"{form.full_name.replace(' ','_')}_VisaCoverLetter.pdf",
+                        label="⬇️ Download Final (PDF)",
+                        mime="application/pdf",
+                    )
+                except Exception as e:
+                    st.error(f"PDF build error: {e}")
+        else:
+            v_preview = render_visa_cover_letter_docx(TEMPLATES_DIR, DATA_DIR, form, v_text, watermarked=True)
+            _download_button(
+                v_preview,
+                f"{form.full_name.replace(' ','_')}_VisaCover_PREVIEW.docx",
+                label="⬇️ Download Watermarked Preview (DOCX)",
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            )
+            st.link_button("Pay ₹299 to unlock Visa Cover Letter (DOCX)",
+                           url=links["VISA_COVER_LETTER"], use_container_width=True)
+
+            if _verify_ui("Visa Cover Letter (DOCX)"):
+                v_final = render_visa_cover_letter_docx(TEMPLATES_DIR, DATA_DIR, form, v_text, watermarked=False)
+                _download_button(
+                    v_final,
+                    f"{form.full_name.replace(' ','_')}_VisaCoverLetter.docx",
+                    label="⬇️ Download Final (DOCX)",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                )
 
 st.divider()
 st.caption("© 2025 CVSarthi — Files auto-delete in 24h. We are not a visa advisory; review before submission.")

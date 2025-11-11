@@ -1,0 +1,14 @@
+\documentclass[a4paper,11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage[hidelinks]{hyperref}
+\usepackage{parskip,lmodern,draftwatermark}
+{% if watermark_text %}\SetWatermarkText{{ {{ watermark_text }} }}\SetWatermarkScale{2}\SetWatermarkLightness{0.9}{% endif %}
+\pagenumbering{gobble}
+\begin{document}
+\begin{center}
+{\Large \textbf{Statement of Purpose}}\\[3pt]
+{{ full_name }} \,|\, {{ email }}\\
+Program: {{ program }} \quad | \quad University: {{ university }} \quad | \quad {{ today }}
+\end{center}
+{{ body }}
+\end{document}
