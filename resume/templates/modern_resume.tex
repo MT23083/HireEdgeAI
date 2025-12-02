@@ -1,0 +1,127 @@
+% Modern Resume Template for HireEdgeAI
+% Clean, ATS-friendly, professional design
+
+\documentclass[11pt,a4paper]{article}
+
+% ============ PACKAGES ============
+\usepackage[margin=0.5in]{geometry}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{fontawesome5}
+\usepackage{xcolor}
+\usepackage{parskip}
+
+% ============ COLORS ============
+\definecolor{primary}{RGB}{0, 79, 144}
+\definecolor{darkgray}{RGB}{50, 50, 50}
+\definecolor{lightgray}{RGB}{100, 100, 100}
+
+% ============ FORMATTING ============
+\hypersetup{
+    colorlinks=true,
+    linkcolor=primary,
+    urlcolor=primary
+}
+
+% Section formatting
+\titleformat{\section}
+    {\Large\bfseries\color{primary}}
+    {}
+    {0em}
+    {}[\titlerule]
+
+\titlespacing{\section}{0pt}{12pt}{6pt}
+
+% Remove page numbers
+\pagestyle{empty}
+
+% ============ DOCUMENT ============
+\begin{document}
+
+% ---------- HEADER ----------
+\begin{center}
+    {\LARGE\textbf{Sarthak Sharma}}\\[4pt]
+    \textcolor{lightgray}{
+        \faIcon{envelope} sarthak.sharma@email.com \quad
+        \faIcon{phone} +91-9876543210 \quad
+        \faIcon{map-marker-alt} New Delhi, India
+    }\\[2pt]
+    \textcolor{lightgray}{
+        \faIcon{linkedin} \href{https://linkedin.com/in/sarthaksharma}{linkedin.com/in/sarthaksharma} \quad
+        \faIcon{github} \href{https://github.com/sarthaksharma}{github.com/sarthaksharma}
+    }
+\end{center}
+
+% ---------- SUMMARY ----------
+\section*{Summary}
+Results-driven Data Analyst with 2+ years of experience in transforming complex datasets into actionable business insights. Proficient in Python, SQL, and data visualization tools. Passionate about leveraging data to drive strategic decision-making and improve operational efficiency.
+
+% ---------- SKILLS ----------
+\section*{Technical Skills}
+\textbf{Languages:} Python, SQL, R, JavaScript \\
+\textbf{Tools \& Frameworks:} Pandas, NumPy, Scikit-learn, TensorFlow, Tableau, Power BI \\
+\textbf{Databases:} PostgreSQL, MySQL, MongoDB \\
+\textbf{Other:} Git, Docker, AWS, Excel (Advanced)
+
+% ---------- EXPERIENCE ----------
+\section*{Experience}
+
+\textbf{Data Analyst} \hfill \textit{Jan 2023 -- Present}\\
+\textit{Tech Solutions Pvt Ltd, New Delhi}
+\begin{itemize}[leftmargin=*, nosep]
+    \item Analyzed 10M+ customer records using Python and SQL, identifying patterns that increased customer retention by 15\%
+    \item Built 12+ interactive dashboards in Tableau, enabling real-time monitoring of key business metrics
+    \item Developed automated ETL pipelines reducing data processing time by 40\%, saving 20+ hours weekly
+    \item Collaborated with cross-functional teams to deliver data-driven recommendations for product improvements
+\end{itemize}
+
+\vspace{6pt}
+
+\textbf{Junior Data Analyst Intern} \hfill \textit{Jun 2022 -- Dec 2022}\\
+\textit{Analytics Corp, Bangalore}
+\begin{itemize}[leftmargin=*, nosep]
+    \item Performed exploratory data analysis on sales data, uncovering trends that informed marketing strategy
+    \item Created weekly automated reports using Python, reducing manual reporting effort by 60\%
+    \item Assisted in building predictive models for customer churn with 85\% accuracy
+\end{itemize}
+
+% ---------- PROJECTS ----------
+\section*{Projects}
+
+\textbf{Customer Churn Prediction Model} \hfill \textit{Python, Scikit-learn, XGBoost}
+\begin{itemize}[leftmargin=*, nosep]
+    \item Developed ML model predicting customer churn with 89\% accuracy using ensemble methods
+    \item Performed feature engineering on 50+ variables, improving model performance by 12\%
+    \item Deployed model as REST API using Flask, enabling real-time predictions
+\end{itemize}
+
+\vspace{6pt}
+
+\textbf{Sales Analytics Dashboard} \hfill \textit{Tableau, SQL, Python}
+\begin{itemize}[leftmargin=*, nosep]
+    \item Designed interactive dashboard tracking \$5M+ in quarterly sales across 3 regions
+    \item Implemented drill-down functionality for granular analysis by product category and time period
+\end{itemize}
+
+% ---------- EDUCATION ----------
+\section*{Education}
+
+\textbf{M.Tech in Computer Science} \hfill \textit{2020 -- 2022}\\
+\textit{IIIT Delhi} \hfill CGPA: 8.7/10
+
+\vspace{4pt}
+
+\textbf{B.Tech in Information Technology} \hfill \textit{2016 -- 2020}\\
+\textit{Delhi Technological University} \hfill CGPA: 8.2/10
+
+% ---------- CERTIFICATIONS ----------
+\section*{Certifications}
+\begin{itemize}[leftmargin=*, nosep]
+    \item Google Data Analytics Professional Certificate (2023)
+    \item AWS Certified Cloud Practitioner (2022)
+    \item Tableau Desktop Specialist (2022)
+\end{itemize}
+
+\end{document}
+
