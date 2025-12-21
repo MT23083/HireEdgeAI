@@ -46,11 +46,27 @@ def init_session_state(default_latex: str = "") -> None:
             # Compilation status
             "is_compiling": False,
             "needs_recompile": True,
+            
+            # Section selection
+            "selected_section": None,
+            "selected_section_content": None,
+            
+            # Chat messages
+            "chat_messages": [],
         }
         
         # Save initial version
         if default_latex:
             _save_version(default_latex, "Initial template")
+    
+    # Ensure chat_messages exists (for backward compatibility)
+    if "chat_messages" not in st.session_state.resume_builder:
+        st.session_state.resume_builder["chat_messages"] = []
+    
+    # Ensure section selection exists
+    if "selected_section" not in st.session_state.resume_builder:
+        st.session_state.resume_builder["selected_section"] = None
+        st.session_state.resume_builder["selected_section_content"] = None
 
 
 def get_current_latex() -> str:
