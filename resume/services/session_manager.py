@@ -53,6 +53,9 @@ def init_session_state(default_latex: str = "") -> None:
             
             # Chat messages
             "chat_messages": [],
+            
+            # Job Description (persistent context)
+            "job_description": "",
         }
         
         # Save initial version
@@ -332,4 +335,43 @@ def get_recent_chat_context(n_messages: int = 10) -> List[dict]:
     """
     messages = get_chat_messages()
     return messages[-n_messages:] if messages else []
+
+
+# ============ Job Description (Persistent Context) ============
+
+def set_job_description(jd: str) -> None:
+    """
+    Store job description in session.
+    This persists across all messages and is not affected by chat history limits.
+    
+    Args:
+        jd: The job description text
+    """
+    if "resume_builder" not in st.session_state:
+        return
+    st.session_state.resume_builder["job_description"] = jd
+
+
+def get_job_description() -> str:
+    """
+    Get the stored job description.
+    
+    Returns:
+        Job description string, or empty string if not set
+    """
+    if "resume_builder" not in st.session_state:
+        return ""
+    return st.session_state.resume_builder.get("job_description", "")
+
+
+def clear_job_description() -> None:
+    """Clear the stored job description"""
+    if "resume_builder" not in st.session_state:
+        return
+    st.session_state.resume_builder["job_description"] = ""
+
+
+def has_job_description() -> bool:
+    """Check if a job description is set"""
+    return bool(get_job_description().strip())
 

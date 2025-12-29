@@ -12,7 +12,9 @@ from .session_manager import (
     # Section selection
     set_selected_section, get_selected_section, clear_selected_section,
     # Chat history
-    add_chat_message, get_chat_messages, clear_chat_messages, get_recent_chat_context
+    add_chat_message, get_chat_messages, clear_chat_messages, get_recent_chat_context,
+    # Job Description
+    set_job_description, get_job_description, clear_job_description, has_job_description
 )
 from .latex_parser import (
     parse_latex_sections, get_section_by_name, replace_section_content,
@@ -51,6 +53,11 @@ __all__ = [
     "get_chat_messages",
     "clear_chat_messages",
     "get_recent_chat_context",
+    # Job Description
+    "set_job_description",
+    "get_job_description",
+    "clear_job_description",
+    "has_job_description",
     # LaTeX Parser
     "parse_latex_sections",
     "get_section_by_name",

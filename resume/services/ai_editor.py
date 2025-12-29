@@ -90,7 +90,8 @@ def edit_section(
     section_name: str,
     section_content: str,
     user_instruction: str,
-    chat_history: Optional[List[Dict]] = None
+    chat_history: Optional[List[Dict]] = None,
+    job_description: Optional[str] = None
 ) -> EditResult:
     """
     Edit a specific section based on user instructions.
@@ -100,6 +101,7 @@ def edit_section(
         section_content: Current LaTeX content of the section
         user_instruction: What the user wants to change
         chat_history: Optional previous chat messages for context
+        job_description: Optional job description for tailoring content
         
     Returns:
         EditResult with the modified content
@@ -112,14 +114,24 @@ def edit_section(
             error="OpenAI API key not configured. Set OPENAI_API_KEY environment variable."
         )
     
+    # Build system prompt with optional JD context
+    system_prompt = SECTION_EDIT_SYSTEM_PROMPT
+    if job_description and job_description.strip():
+        system_prompt += f"""
+
+TARGET JOB DESCRIPTION:
+{job_description}
+
+IMPORTANT: Tailor the resume content to match this job description. Emphasize relevant skills, experiences, and keywords that align with the job requirements."""
+    
     # Build messages
     messages = [
-        {"role": "system", "content": SECTION_EDIT_SYSTEM_PROMPT}
+        {"role": "system", "content": system_prompt}
     ]
     
-    # Add chat history for context (last 5 messages)
+    # Add chat history for context (last 15 messages for better memory)
     if chat_history:
-        for msg in chat_history[-5:]:
+        for msg in chat_history[-15:]:
             messages.append({
                 "role": msg["role"],
                 "content": msg["content"]
@@ -168,7 +180,8 @@ Please modify the section according to the user's request. Return ONLY the modif
 def edit_full_resume(
     full_latex: str,
     user_instruction: str,
-    chat_history: Optional[List[Dict]] = None
+    chat_history: Optional[List[Dict]] = None,
+    job_description: Optional[str] = None
 ) -> EditResult:
     """
     Edit the entire resume based on user instructions.
@@ -177,6 +190,7 @@ def edit_full_resume(
         full_latex: Complete LaTeX source
         user_instruction: What the user wants to change
         chat_history: Optional previous chat messages for context
+        job_description: Optional job description for tailoring content
         
     Returns:
         EditResult with the modified LaTeX
@@ -189,13 +203,23 @@ def edit_full_resume(
             error="OpenAI API key not configured. Set OPENAI_API_KEY environment variable."
         )
     
+    # Build system prompt with optional JD context
+    system_prompt = FULL_RESUME_SYSTEM_PROMPT
+    if job_description and job_description.strip():
+        system_prompt += f"""
+
+TARGET JOB DESCRIPTION:
+{job_description}
+
+IMPORTANT: Tailor the resume content to match this job description. Emphasize relevant skills, experiences, and keywords that align with the job requirements."""
+    
     messages = [
-        {"role": "system", "content": FULL_RESUME_SYSTEM_PROMPT}
+        {"role": "system", "content": system_prompt}
     ]
     
-    # Add chat history
+    # Add chat history (last 15 messages for better memory)
     if chat_history:
-        for msg in chat_history[-5:]:
+        for msg in chat_history[-15:]:
             messages.append({
                 "role": msg["role"],
                 "content": msg["content"]
