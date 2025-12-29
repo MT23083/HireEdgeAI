@@ -25,7 +25,8 @@ from resume.services.session_manager import (
     get_compiled_pdf, set_compiled_pdf, set_compile_error, get_compile_error,
     needs_recompile, get_version_info,
     set_selected_section, get_selected_section, clear_selected_section,
-    add_chat_message, get_chat_messages, clear_chat_messages, get_recent_chat_context
+    add_chat_message, get_chat_messages, clear_chat_messages, get_recent_chat_context,
+    set_job_description, get_job_description, clear_job_description, has_job_description
 )
 from resume.services.latex_parser import parse_latex_sections, replace_section_content
 from resume.services.ai_editor import edit_section, edit_full_resume, is_api_configured
@@ -160,7 +161,7 @@ def render_section_buttons():
 
 
 def render_chat_interface():
-    """Render simple chat interface with ONE query box"""
+    """Render chat interface: History → Sections → Query box"""
     selected_name, selected_content = get_selected_section()
     
     # Initialize query prefix
@@ -169,12 +170,56 @@ def render_chat_interface():
     
     st.markdown("##### 💬 AI Editor")
     
-    # Section buttons FIRST (click to add @section to query)
+    # 1. CHAT HISTORY FIRST - scrollable container
+    messages = get_chat_messages()
+    chat_container = st.container(height=250)
+    with chat_container:
+        if not messages:
+            st.caption("Your conversation will appear here...")
+        else:
+            for msg in messages[-20:]:  # Show last 20 messages
+                if msg["role"] == "user":
+                    st.markdown(f"**You:** {msg['content']}")
+                else:
+                    st.markdown(f"**🤖:** {msg['content']}")
+    
+    st.markdown("---")
+    
+    # 2. JOB DESCRIPTION (collapsible)
+    jd_set = has_job_description()
+    jd_label = "📋 Job Description ✓" if jd_set else "📋 Add Job Description (optional)"
+    with st.expander(jd_label, expanded=False):
+        current_jd = get_job_description()
+        jd_input = st.text_area(
+            "Job Description",
+            value=current_jd,
+            height=80,
+            max_chars=5000,  # ~1000 words
+            placeholder="Paste job description here to tailor your resume...",
+            label_visibility="collapsed"
+        )
+        # Word count and buttons in one row
+        word_count = len(jd_input.split()) if jd_input.strip() else 0
+        st.caption(f"{word_count}/1000 words")
+        
+        # Use single row with buttons side by side
+        if st.button("💾 Save JD", key="save_jd"):
+            if word_count <= 1000:
+                set_job_description(jd_input)
+                st.success("Saved!")
+                st.rerun()
+            else:
+                st.error("Max 1000 words")
+        if jd_set:
+            if st.button("🗑️ Clear JD", key="clear_jd"):
+                clear_job_description()
+                st.rerun()
+    
+    # 3. SECTION BUTTONS
     st.caption("📑 Click section to edit:")
     render_section_buttons()
     
-    # Query input box - PROMINENT
-    st.markdown("---")
+    # 3. QUERY INPUT BOX at bottom
     prefix = st.session_state.query_prefix
     default_value = prefix if prefix else ""
     
@@ -183,7 +228,7 @@ def render_chat_interface():
         user_input = st.text_input(
             "Query",
             value=default_value,
-            placeholder="Click a section above, then type: add metrics, improve wording...",
+            placeholder="Type your request here...",
             key="main_query",
             label_visibility="collapsed"
         )
@@ -193,18 +238,6 @@ def render_chat_interface():
     # Clear prefix after showing
     if prefix:
         st.session_state.query_prefix = ""
-    
-    st.markdown("---")
-    
-    # Chat history - COMPACT (shows after input)
-    messages = get_chat_messages()
-    if messages:
-        st.caption("Chat history:")
-        for msg in messages[-5:]:  # Show last 5 messages only
-            if msg["role"] == "user":
-                st.markdown(f"**You:** {msg['content']}")
-            else:
-                st.markdown(f"**🤖:** {msg['content']}")
     
     # Process input
     if send_clicked and user_input.strip():
@@ -241,13 +274,17 @@ def process_chat_input(user_input: str, selected_name: str, selected_content: st
     # Add user message to history
     add_chat_message("user", user_input, selected_name)
     
+    # Get job description for context (persistent, not affected by chat limit)
+    jd = get_job_description()
+    
     with st.spinner("🤖 AI is thinking..."):
         if selected_name == "__full__":
             # Edit full resume
             result = edit_full_resume(
                 full_latex=get_current_latex(),
                 user_instruction=user_input,
-                chat_history=get_recent_chat_context()
+                chat_history=get_recent_chat_context(),
+                job_description=jd
             )
             
             if result.success:
@@ -262,7 +299,8 @@ def process_chat_input(user_input: str, selected_name: str, selected_content: st
                 section_name=selected_name,
                 section_content=selected_content,
                 user_instruction=user_input,
-                chat_history=get_recent_chat_context()
+                chat_history=get_recent_chat_context(),
+                job_description=jd
             )
             
             if result.success:
@@ -293,7 +331,8 @@ def process_chat_input(user_input: str, selected_name: str, selected_content: st
             result = edit_full_resume(
                 full_latex=get_current_latex(),
                 user_instruction=user_input,
-                chat_history=get_recent_chat_context()
+                chat_history=get_recent_chat_context(),
+                job_description=jd
             )
             
             if result.success:
