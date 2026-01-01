@@ -32,6 +32,10 @@ from resume.services.latex_parser import parse_latex_sections, replace_section_c
 from resume.services.ai_editor import edit_section, edit_full_resume, is_api_configured
 from resume.utils.file_handlers import create_download_buttons, extract_name_from_latex
 from resume.services.document_converter import convert_document, get_supported_formats
+from resume.utils.ats import (
+    calculate_ats_universal_score, calculate_hbps_score, calculate_ats_jd_score,
+    ATSUniversalResult, HBPSResult, ATSJDResult
+)
 
 
 # ============ CONFIGURATION ============
@@ -159,6 +163,186 @@ def render_section_buttons():
                     if st.button(f"@{name}", key=f"sec_more_{i}", use_container_width=True):
                         st.session_state.query_prefix = f"@{name}: "
                         set_selected_section(name, content)
+
+
+def render_score_modal(
+    ats_universal: ATSUniversalResult = None,
+    hbps: HBPSResult = None,
+    ats_jd: ATSJDResult = None
+) -> None:
+    """Render all scores in a beautiful modal-like display"""
+    if not (ats_universal or hbps or ats_jd):
+        return
+    
+    def get_score_color(score: int) -> str:
+        if score >= 85: return "#22c55e"
+        elif score >= 70: return "#84cc16"
+        elif score >= 55: return "#eab308"
+        else: return "#ef4444"
+    
+    def get_rating_emoji(rating: str) -> str:
+        rating_lower = rating.lower()
+        if "excellent" in rating_lower: return "🌟"
+        elif "good" in rating_lower: return "✅"
+        elif "fair" in rating_lower: return "⚠️"
+        else: return "❌"
+    
+    # Create tabs for different scores
+    tabs = []
+    if ats_universal: tabs.append("ATS Universal")
+    if hbps: tabs.append("HBPS")
+    if ats_jd: tabs.append("ATS (with JD)")
+    
+    if len(tabs) > 1:
+        tab_objects = st.tabs(tabs)
+        tab_idx = 0
+        
+        if ats_universal:
+            with tab_objects[tab_idx]:
+                st.markdown("### 📊 ATS Universal Score")
+                st.caption("Measures ATS compatibility without a job description")
+                color = get_score_color(ats_universal.score)
+                emoji = get_rating_emoji(ats_universal.rating)
+                
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, {color}15, {color}05); border: 2px solid {color}; border-radius: 12px; padding: 1.5rem; margin: 1rem 0; text-align: center;">
+                    <div style="font-size: 3rem; font-weight: bold; color: {color};">
+                        {ats_universal.score}<span style="font-size: 1.5rem; opacity: 0.7;">/100</span>
+                    </div>
+                    <div style="font-size: 1.2rem; color: {color}; font-weight: 600; margin-top: 0.5rem;">
+                        {emoji} {ats_universal.rating}
+                    </div>
+                    <div style="font-size: 0.9rem; color: #666; margin-top: 0.5rem;">{ats_universal.summary}</div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                col1, col2 = st.columns(2)
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.markdown("**Sections**")
+                    st.progress(ats_universal.section_score / 100)
+                    st.caption(f"{ats_universal.section_score}/100")
+                    st.markdown("**Metrics**")
+                    st.progress(ats_universal.metrics_score / 100)
+                    st.caption(f"{ats_universal.metrics_score}/100 ({ats_universal.metrics_count} found)")
+                with col2:
+                    st.markdown("**Action Verbs**")
+                    st.progress(ats_universal.action_verbs_score / 100)
+                    st.caption(f"{ats_universal.action_verbs_score}/100 ({ats_universal.action_verbs_count} found)")
+                    st.markdown("**Structure**")
+                    st.progress(ats_universal.structure_score / 100)
+                    st.caption(f"{ats_universal.structure_score}/100 ({ats_universal.word_count} words)")
+                with col3:
+                    st.markdown("**Design/Template**")
+                    st.progress(ats_universal.design_score / 100)
+                    st.caption(f"{ats_universal.design_score}/100")
+                    if ats_universal.design_issues:
+                        st.caption(f"⚠️ {len(ats_universal.design_issues)} issue(s)")
+                    else:
+                        st.caption("✓ ATS-friendly")
+                
+                if ats_universal.found_sections:
+                    st.markdown("**✅ Found:** " + ", ".join(ats_universal.found_sections))
+                if ats_universal.missing_sections:
+                    st.markdown("**❌ Missing:** " + ", ".join(ats_universal.missing_sections))
+                if ats_universal.design_issues:
+                    with st.expander("🎨 Design Issues", expanded=False):
+                        for issue in ats_universal.design_issues:
+                            st.markdown(f"⚠️ {issue}")
+                if ats_universal.recommendations:
+                    with st.expander("💡 Recommendations", expanded=True):
+                        for i, rec in enumerate(ats_universal.recommendations, 1):
+                            st.markdown(f"{i}. {rec}")
+            tab_idx += 1
+        
+        if hbps:
+            with tab_objects[tab_idx]:
+                st.markdown("### 🎯 HBPS Score (Human Best Practice)")
+                st.caption("Measures what recruiters see in a 6-second scan")
+                color = get_score_color(hbps.score)
+                emoji = get_rating_emoji(hbps.rating)
+                
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, {color}15, {color}05); border: 2px solid {color}; border-radius: 12px; padding: 1.5rem; margin: 1rem 0; text-align: center;">
+                    <div style="font-size: 3rem; font-weight: bold; color: {color};">
+                        {hbps.score}<span style="font-size: 1.5rem; opacity: 0.7;">/100</span>
+                    </div>
+                    <div style="font-size: 1.2rem; color: {color}; font-weight: 600; margin-top: 0.5rem;">
+                        {emoji} {hbps.rating}
+                    </div>
+                    <div style="font-size: 0.9rem; color: #666; margin-top: 0.5rem;">{hbps.summary}</div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.markdown("**First Impression**")
+                    st.progress(hbps.first_impression_score / 100)
+                    st.caption(f"{hbps.first_impression_score}/100")
+                    st.markdown("**Scannability**")
+                    st.progress(hbps.scannability_score / 100)
+                    st.caption(f"{hbps.scannability_score}/100")
+                    st.markdown("**Impact Numbers**")
+                    st.progress(hbps.impact_numbers_score / 100)
+                    st.caption(f"{hbps.impact_numbers_score}/100")
+                with col2:
+                    st.markdown("**Credibility**")
+                    st.progress(hbps.credibility_score / 100)
+                    st.caption(f"{hbps.credibility_score}/100")
+                    st.markdown("**Clarity**")
+                    st.progress(hbps.clarity_score / 100)
+                    st.caption(f"{hbps.clarity_score}/100")
+                
+                if hbps.what_recruiter_sees:
+                    st.markdown("#### 👁️ What Recruiter Sees (in 6 seconds)")
+                    for item in hbps.what_recruiter_sees:
+                        st.markdown(f"• {item}")
+                if hbps.recommendations:
+                    with st.expander("💡 Recommendations", expanded=True):
+                        for i, rec in enumerate(hbps.recommendations, 1):
+                            st.markdown(f"{i}. {rec}")
+            tab_idx += 1
+        
+        if ats_jd:
+            with tab_objects[tab_idx]:
+                st.markdown("### 🎯 ATS Score (with Job Description)")
+                st.caption("Measures how well your resume matches the job description")
+                color = get_score_color(ats_jd.score)
+                emoji = get_rating_emoji(ats_jd.rating)
+                
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, {color}15, {color}05); border: 2px solid {color}; border-radius: 12px; padding: 1.5rem; margin: 1rem 0; text-align: center;">
+                    <div style="font-size: 3rem; font-weight: bold; color: {color};">
+                        {ats_jd.score}<span style="font-size: 1.5rem; opacity: 0.7;">/100</span>
+                    </div>
+                    <div style="font-size: 1.2rem; color: {color}; font-weight: 600; margin-top: 0.5rem;">
+                        {emoji} {ats_jd.rating}
+                    </div>
+                    <div style="font-size: 0.9rem; color: #666; margin-top: 0.5rem;">{ats_jd.summary}</div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                if ats_jd.matched_keywords:
+                    st.markdown("**✅ Matched Keywords:** " + ", ".join(ats_jd.matched_keywords[:15]))
+                if ats_jd.missing_keywords:
+                    st.markdown("**❌ Missing Keywords:** " + ", ".join(ats_jd.missing_keywords[:10]))
+    else:
+        # Single score - no tabs
+        if ats_universal:
+            st.markdown("### 📊 ATS Universal Score")
+            color = get_score_color(ats_universal.score)
+            emoji = get_rating_emoji(ats_universal.rating)
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, {color}15, {color}05); border: 2px solid {color}; border-radius: 12px; padding: 1.5rem; margin: 1rem 0; text-align: center;">
+                <div style="font-size: 3rem; font-weight: bold; color: {color};">
+                    {ats_universal.score}<span style="font-size: 1.5rem; opacity: 0.7;">/100</span>
+                </div>
+                <div style="font-size: 1.2rem; color: {color}; font-weight: 600; margin-top: 0.5rem;">
+                    {emoji} {ats_universal.rating}
+                </div>
+                <div style="font-size: 0.9rem; color: #666; margin-top: 0.5rem;">{ats_universal.summary}</div>
+            </div>
+            """, unsafe_allow_html=True)
 
 
 def render_chat_interface():
@@ -577,6 +761,53 @@ def main():
     
     # ---------- RIGHT: AI CHAT WITH SECTION BUTTONS ----------
     with right_col:
+        # Resume Scoring Section
+        st.markdown("##### 📊 Resume Scores")
+        
+        # Check if scores are cached
+        if "ats_universal_result" not in st.session_state:
+            st.session_state.ats_universal_result = None
+        if "hbps_result" not in st.session_state:
+            st.session_state.hbps_result = None
+        if "ats_jd_result" not in st.session_state:
+            st.session_state.ats_jd_result = None
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🔍 Check Scores", use_container_width=True, type="primary"):
+                latex_source = get_current_latex()
+                with st.spinner("Analyzing resume..."):
+                    st.session_state.ats_universal_result = calculate_ats_universal_score(latex_source)
+                    st.session_state.hbps_result = calculate_hbps_score(latex_source)
+                    jd = get_job_description()
+                    if jd and jd.strip():
+                        st.session_state.ats_jd_result = calculate_ats_jd_score(latex_source, jd)
+                    else:
+                        st.session_state.ats_jd_result = None
+                st.rerun()
+        with col2:
+            if st.button("🔄 Refresh", use_container_width=True):
+                st.session_state.ats_universal_result = None
+                st.session_state.hbps_result = None
+                st.session_state.ats_jd_result = None
+                st.rerun()
+        
+        # Display scores if available
+        if st.session_state.ats_universal_result or st.session_state.hbps_result or st.session_state.ats_jd_result:
+            render_score_modal(
+                ats_universal=st.session_state.ats_universal_result,
+                hbps=st.session_state.hbps_result,
+                ats_jd=st.session_state.ats_jd_result
+            )
+        else:
+            st.caption("Click 'Check Scores' to analyze your resume")
+            jd = get_job_description()
+            if not jd or not jd.strip():
+                st.caption("💡 Add a Job Description for ATS (with JD) score")
+        
+        st.divider()
+        
+        # AI Chat Interface
         render_chat_interface()
     
     # ============ FOOTER ============
