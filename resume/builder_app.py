@@ -31,6 +31,7 @@ from resume.services.session_manager import (
 from resume.services.latex_parser import parse_latex_sections, replace_section_content
 from resume.services.ai_editor import edit_section, edit_full_resume, is_api_configured
 from resume.utils.file_handlers import create_download_buttons, extract_name_from_latex
+from resume.services.document_converter import convert_document, get_supported_formats
 
 
 # ============ CONFIGURATION ============
@@ -349,22 +350,35 @@ def render_sidebar():
     with st.sidebar:
         st.markdown("#### 📁 Options")
         
-        # Compact file upload
+        # Compact file upload - supports TEX, PDF, DOCX
         uploaded_file = st.file_uploader(
-            "Upload .tex/.pdf",
-            type=["tex", "pdf"],
+            "Upload Resume",
+            type=["tex", "pdf", "docx"],
             key="resume_upload",
-            label_visibility="collapsed"
+            label_visibility="collapsed",
+            help="Upload .tex, .pdf, or .docx files"
         )
         
         if uploaded_file is not None:
-            if uploaded_file.name.endswith('.tex'):
-                latex_content = uploaded_file.read().decode('utf-8')
-                update_latex(latex_content, save_version=True, description="Uploaded file")
-                st.success(f"✅ {uploaded_file.name}")
+            file_content = uploaded_file.read()
+            filename = uploaded_file.name
+            
+            # Convert to LaTeX using document_converter
+            with st.spinner(f"Converting {filename}..."):
+                result = convert_document(file_content, filename)
+            
+            if result.success:
+                update_latex(result.latex_content, save_version=True, description=f"Uploaded: {filename}")
+                st.success(f"✅ {filename}")
+                
+                # Show warnings if any
+                if result.warnings:
+                    for warning in result.warnings:
+                        st.warning(f"⚠️ {warning}")
+                
                 st.rerun()
-            elif uploaded_file.name.endswith('.pdf'):
-                st.info("PDF → LaTeX coming soon")
+            else:
+                st.error(f"❌ Conversion failed: {result.error_message}")
         
         # New resume button
         if st.button("🆕 New", use_container_width=True):
