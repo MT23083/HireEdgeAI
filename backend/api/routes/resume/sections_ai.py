@@ -302,7 +302,19 @@ async def clear_chat_history(session_id: str):
 @router.put("/session/{session_id}/job-description")
 async def set_job_description(session_id: str, request: JobDescriptionRequest):
     """Set job description for context"""
+    # Validate session exists
+    session = session_manager.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    # Set job description
     session_manager.set_job_description(session_id, request.job_description)
+    
+    # Verify it was saved correctly
+    saved_jd = session_manager.get_job_description(session_id)
+    if saved_jd != request.job_description:
+        raise HTTPException(status_code=500, detail="Failed to save job description")
+    
     return {"success": True, "message": "Job description saved"}
 
 

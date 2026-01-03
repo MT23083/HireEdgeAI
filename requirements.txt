@@ -8,3 +8,7 @@ python-dotenv>=1.0
 jinja2>=3.1
 pypandoc>=1.13
 pdf2docx>=0.5.0
+
+# ATS Scoring - Semantic similarity
+sentence-transformers>=2.2.0
+torch>=2.0.0
