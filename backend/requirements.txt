@@ -19,3 +19,7 @@ pdf2docx>=0.5.0
 # Additional for API
 aiofiles>=23.2.1
 
+# ATS Scoring - Semantic similarity
+sentence-transformers>=2.2.0
+torch>=2.0.0
+
