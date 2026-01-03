@@ -1,0 +1,20 @@
+version: 1.0
+runtime: docker
+build:
+  commands:
+    build:
+      - echo "Building Docker image"
+run:
+  runtime-version: latest
+  command: uvicorn main:app --host 0.0.0.0 --port 8000
+  network:
+    port: 8000
+    env: PORT
+  env:
+    - name: HOST
+      value: "0.0.0.0"
+    - name: PORT
+      value: "8000"
+    - name: DEBUG
+      value: "false"
+
